@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Google Tensor G3 (zuma) clocks for the touchscreen, its PMIC and the GPU.
+ * Google Tensor G3 (zuma) clocks for the touchscreen, its PMIC, the GPU and the
+ * battery bus.
  *
  * Register layout and parents derived from Google's GPL CMUCAL tables in
  * cal-if/zuma/cmucal-{sfr,node}.c, Copyright 2022 Samsung Electronics Co., Ltd.
- * Only the paths from CMU_TOP to HSI0's USI2 and to CMU_G3D are described,
- * with CMU_APM's clocks for the APM mailbox, its SRAM and the always-on GPIO
+ * Only the paths from CMU_TOP to HSI0's USI2, to CMU_G3D and to PERIC1's
+ * USI11 (the battery, charger and USB-C I2C bus) are described, with
+ * CMU_APM's clocks for the APM mailbox, its SRAM and the always-on GPIO
  * banks. PLLs, muxes and dividers keep their firmware settings, except
  * USI2's own divider, which sets the SPI rate. No PLL rate table is
  * supplied.
@@ -48,6 +50,9 @@ static const struct samsung_fixed_factor_clock top_factors[] __initconst = {
 	FFACTOR(CLK_SHARED1_D3, "zuma_shared1_d3", "zuma_shared1", 1, 3, 0),
 };
 
+PNAME(mout_peric1_parents) = {
+	"zuma_shared0_d4", "zuma_shared2_d2", "zuma_shared3_d2", "zuma_spare",
+};
 PNAME(mout_hsi0_noc_parents) = {
 	"zuma_shared0_d4", "zuma_shared1_d4", "zuma_shared2_d2",
 	"zuma_shared3_d2", "zuma_spare", "oscclk", "oscclk", "oscclk",
@@ -79,10 +84,14 @@ static const struct samsung_mux_clock top_muxes[] __initconst = {
 	      0x1070, 0, 3, 0, CLK_MUX_READ_ONLY),
 	MUX_F(CLK_MOUT_G3D_SWITCH, "zuma_mout_g3d_switch",
 	      mout_g3d_switch_parents, 0x1074, 0, 3, 0, CLK_MUX_READ_ONLY),
+	MUX_F(CLK_MOUT_PERIC1_NOC, "zuma_mout_peric1_noc", mout_peric1_parents,
+	      0x10f8, 0, 2, 0, CLK_MUX_READ_ONLY),
+	MUX_F(CLK_MOUT_PERIC1_IP, "zuma_mout_peric1_ip", mout_peric1_parents,
+	      0x10f4, 0, 2, 0, CLK_MUX_READ_ONLY),
 };
 
 /*
- * The hardware order is mux -> gate -> divider. The HSI0 and G3D paths are
+ * The hardware order is mux -> gate -> divider. The HSI0, G3D and PERIC1 paths are
  * firmware-owned.
  */
 static const struct samsung_gate_clock top_ro_gates[] __initconst = {
@@ -96,6 +105,10 @@ static const struct samsung_gate_clock top_ro_gates[] __initconst = {
 	     0x2098, 21, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_GOUT_G3D_SWITCH, "zuma_gout_g3d_switch", "zuma_mout_g3d_switch",
 	     0x209c, 21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIC1_NOC, "zuma_gout_peric1_noc", "zuma_mout_peric1_noc",
+	     0x211c, 21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIC1_IP, "zuma_gout_peric1_ip", "zuma_mout_peric1_ip",
+	     0x2118, 21, CLK_IGNORE_UNUSED, 0),
 };
 
 static const struct samsung_div_clock top_dividers[] __initconst = {
@@ -109,6 +122,10 @@ static const struct samsung_div_clock top_dividers[] __initconst = {
 	      0x1868, 0, 4, 0, CLK_DIVIDER_READ_ONLY),
 	DIV_F(CLK_DOUT_G3D_SWITCH, "zuma_dout_g3d_switch", "zuma_gout_g3d_switch",
 	      0x186c, 0, 3, 0, CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DOUT_PERIC1_NOC, "zuma_dout_peric1_noc", "zuma_gout_peric1_noc",
+	      0x18f0, 0, 4, 0, CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DOUT_PERIC1_IP, "zuma_dout_peric1_ip", "zuma_gout_peric1_ip",
+	      0x18ec, 0, 4, 0, CLK_DIVIDER_READ_ONLY),
 };
 
 static const struct samsung_cmu_info top_cmu __initconst = {
@@ -361,6 +378,58 @@ static const struct samsung_cmu_info g3d_cmu __initconst = {
 	.clk_name = "bus",
 };
 
+/*
+ * CMU_PERIC1, 0x10c00000. Firmware sets it up: the user muxes and the USI11
+ * divider are read-only, and the GPIO and sysreg gates are read-only gates.
+ * USI11 is the I2C bus of the MAX77759 gauge, charger and Type-C controller
+ * and the MAX77729 PMIC. Its gates are the ones Linux turns on, as for the
+ * Pixel 9a's USI10; their auto/manual mode is left as firmware set it.
+ */
+PNAME(mout_peric1_noc_user_parents) = { "oscclk", "zuma_dout_peric1_noc" };
+PNAME(mout_peric1_usi11_user_parents) = { "oscclk", "zuma_dout_peric1_ip" };
+
+static const struct samsung_mux_clock peric1_muxes[] __initconst = {
+	MUX_F(CLK_MOUT_PERIC1_NOC_USER, "zuma_mout_peric1_noc_user",
+	      mout_peric1_noc_user_parents, 0x610, 4, 1, 0, CLK_MUX_READ_ONLY),
+	MUX_F(CLK_MOUT_PERIC1_USI11_USER, "zuma_mout_peric1_usi11_user",
+	      mout_peric1_usi11_user_parents, 0x640, 4, 1, 0, CLK_MUX_READ_ONLY),
+};
+
+static const struct samsung_div_clock peric1_dividers[] __initconst = {
+	DIV_F(CLK_DOUT_PERIC1_USI11, "zuma_dout_peric1_usi11",
+	      "zuma_mout_peric1_usi11_user", 0x1810, 0, 4, 0,
+	      CLK_DIVIDER_READ_ONLY),
+};
+
+static const struct samsung_gate_clock peric1_ro_gates[] __initconst = {
+	GATE(CLK_GOUT_GPIO_PERIC1, "zuma_gout_gpio_peric1",
+	     "zuma_mout_peric1_noc_user", 0x2080, 21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIC1_SYSREG, "zuma_gout_peric1_sysreg",
+	     "zuma_mout_peric1_noc_user", 0x20a4, 21, CLK_IGNORE_UNUSED, 0),
+};
+
+static const struct samsung_gate_clock peric1_gates[] __initconst = {
+	GATE(CLK_GOUT_PERIC1_USI11_IPCLK, "zuma_gout_peric1_usi11_ipclk",
+	     "zuma_dout_peric1_usi11", 0x2048, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI11_PCLK, "zuma_gout_peric1_usi11_pclk",
+	     "zuma_mout_peric1_noc_user", 0x204c, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI11_RSTNSYNC, "zuma_gout_peric1_usi11_rstnsync",
+	     "zuma_dout_peric1_usi11", 0x2094, 21, 0, 0),
+};
+
+static const struct samsung_cmu_info peric1_cmu __initconst = {
+	.mux_clks = peric1_muxes,
+	.nr_mux_clks = ARRAY_SIZE(peric1_muxes),
+	.div_clks = peric1_dividers,
+	.nr_div_clks = ARRAY_SIZE(peric1_dividers),
+	.ro_gate_clks = peric1_ro_gates,
+	.nr_ro_gate_clks = ARRAY_SIZE(peric1_ro_gates),
+	.gate_clks = peric1_gates,
+	.nr_gate_clks = ARRAY_SIZE(peric1_gates),
+	.nr_clk_ids = CLK_GOUT_PERIC1_USI11_RSTNSYNC + 1,
+	.clk_name = "bus",
+};
+
 static int __init zuma_cmu_probe(struct platform_device *pdev)
 {
 	const struct samsung_cmu_info *cmu = device_get_match_data(&pdev->dev);
@@ -373,6 +442,7 @@ static const struct of_device_id zuma_cmu_match[] = {
 	{ .compatible = "google,zuma-cmu-apm", .data = &apm_cmu },
 	{ .compatible = "google,zuma-cmu-g3d", .data = &g3d_cmu },
 	{ .compatible = "google,zuma-cmu-hsi0", .data = &hsi0_cmu },
+	{ .compatible = "google,zuma-cmu-peric1", .data = &peric1_cmu },
 	{ }
 };
 
