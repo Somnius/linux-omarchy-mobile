@@ -545,6 +545,8 @@
 
 &uart18 {
 	status = "okay";
+	pinctrl-0 = <&uart18_bus>;
+	pinctrl-names = "default";
 
 	bluetooth {
 		compatible = "brcm,bcm4389-bt";

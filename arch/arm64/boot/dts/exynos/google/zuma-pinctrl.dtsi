@@ -138,6 +138,14 @@
 			     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	/* The APM USI1 UART (Bluetooth): gpa3-0..3 in function 2, as Google's uart18_bus. */
+	uart18_bus: uart18-bus-pins {
+		samsung,pins = "gpa3-0", "gpa3-1", "gpa3-2", "gpa3-3";
+		samsung,pin-function = <GS101_PIN_FUNC_2>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
 	key_power: key-power-pins {
 		samsung,pins = "gpa4-0";
 		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
