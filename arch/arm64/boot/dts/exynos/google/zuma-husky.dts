@@ -551,10 +551,11 @@
 	bluetooth {
 		compatible = "brcm,bcm4389-bt";
 		pinctrl-names = "default";
-		pinctrl-0 = <&bt_power &bt_host_wake>;
+		pinctrl-0 = <&bt_power &bt_ble_dbo &bt_host_wake>;
 		max-speed = <3000000>;
 		shutdown-gpios = <&gpn8 0 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&gpn9 0 GPIO_ACTIVE_HIGH>;
+		brcm,ble-dbo-gpios = <&gpp24 3 GPIO_ACTIVE_HIGH>;
 		interrupts-extended = <&gpn6 0 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "host-wakeup";
 	};
