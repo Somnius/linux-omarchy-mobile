@@ -1179,6 +1179,17 @@
 			#mbox-cells = <0>;
 		};
 
+		/*
+		 * The GSA's non-secure mailbox, as Google's zuma-gsa.dtsi: the
+		 * channel the AoC firmware is authenticated and started through.
+		 */
+		gsa: gsa@16490000 {
+			compatible = "google,zuma-gsa";
+			reg = <0x16490000 0x1000>;
+			interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		cmu_apm: clock-controller@15400000 {
 			compatible = "google,zuma-cmu-apm";
 			reg = <0x15400000 0x8000>;

@@ -633,3 +633,12 @@
 		};
 	};
 };
+
+/*
+ * The GSA mailbox, for the AoC bring-up (device/husky/AOC-PLAN.md Z1). The
+ * gsa module is blacklisted on the phone and loaded by hand: its probe masks
+ * the GSA to AP interrupts, which touches the mailbox.
+ */
+&gsa {
+	status = "okay";
+};
