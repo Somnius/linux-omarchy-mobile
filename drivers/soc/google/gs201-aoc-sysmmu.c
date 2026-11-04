@@ -123,6 +123,7 @@ struct aoc_sysmmu {
 	bool vm;
 	bool irq_on;
 	bool enabled;
+	bool v9;
 	u32 saved_ctrl;
 	u32 saved_ctrl_vm[MAX_VIDS];
 };
@@ -210,6 +211,80 @@ static irqreturn_t aoc_sysmmu_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+
+/*
+ * zuma's AoC System MMU is Samsung's v9 block (Google: samsung-iommu-v9.c,
+ * zuma-sysmmu.dtsi sysmmu_aoc). Only VID 0 is used (vmid_mask 1), page table
+ * entries get the AP read and write bits, and the streams are the ones of
+ * the stock device tree: pmmu0, the default stream and 29 SID matches.
+ */
+#define V9_REG_CTRL_VM			0x8000
+#define V9_REG_ALL_INV_VM		0x8010
+#define V9_REG_FLPT_BASE_VM		0x8404
+#define V9_REG_ATTR_VM			0x8408
+#define V9_REG_PMMU_INDICATOR		0x2ffc
+#define V9_REG_STREAM_CFG(n)		(0x2000 + (n) * 0x10)
+#define V9_REG_STREAM_MATCH_CFG(n)	(0x2004 + (n) * 0x10)
+#define V9_REG_STREAM_SID_VALUE(n)	(0x2008 + (n) * 0x10)
+#define V9_REG_STREAM_SID_MASK(n)	(0x200c + (n) * 0x10)
+#define V9_CTRL_ENABLE			BIT(0)
+#define V9_ATTR_USE_AP			BIT(2)
+#define V9_ATTR_QOS_OVERRIDE		BIT(11)
+#define V9_ATTR_QOS(n)			(((n) & 0xf) << 7)
+#define V9_ATTR_PT_CACHE_MASK		GENMASK(19, 16)
+#define V9_ATTR_PT_CACHE_NORMAL_NC	(0x2 << 16)
+#define V9_PTE_AP_READ			BIT(4)
+#define V9_PTE_AP_WRITE			BIT(5)
+#define V9_STREAM_CFG(stlb)		(((stlb) << 24) | 0x10b)	/* S2_EN BL1 PREF_PRED STLB_PREF PTLB_PREF */
+#define V9_MATCH_DIR_RW			0x301
+#define V9_QOS				15
+
+struct v9_stream {
+	u8 index;
+	u8 stlb;
+	u8 sid;
+};
+
+static const struct v9_stream v9_streams[] = {
+	{ 1, 1, 0x02 }, { 2, 0, 0x03 }, { 3, 0, 0x04 }, { 4, 0, 0x05 },
+	{ 5, 0, 0x06 }, { 6, 0, 0x09 }, { 7, 0, 0x0a }, { 8, 0, 0x0b },
+	{ 9, 0, 0x0c }, { 10, 0, 0x0d }, { 11, 0, 0x0e }, { 12, 0, 0x20 },
+	{ 13, 0, 0x21 }, { 14, 0, 0x22 }, { 15, 0, 0x23 }, { 16, 0, 0x24 },
+	{ 17, 0, 0x25 }, { 18, 0, 0x26 }, { 19, 0, 0x27 }, { 20, 0, 0x28 },
+	{ 21, 0, 0x30 }, { 22, 0, 0x31 }, { 23, 0, 0x32 }, { 24, 0, 0x33 },
+	{ 25, 0, 0x34 }, { 26, 0, 0x35 }, { 27, 0, 0x36 }, { 28, 0, 0x37 },
+	{ 29, 0, 0x38 },
+};
+
+static void aoc_sysmmu_program_v9(struct aoc_sysmmu *mmu)
+{
+	unsigned int i;
+	u32 attr;
+
+	writel(mmu->table_dma >> PT_BASE_SHIFT, mmu->base + V9_REG_FLPT_BASE_VM);
+	attr = readl(mmu->base + V9_REG_ATTR_VM);
+	attr &= ~V9_ATTR_PT_CACHE_MASK;
+	attr |= V9_ATTR_PT_CACHE_NORMAL_NC | V9_ATTR_USE_AP;
+	attr &= ~V9_ATTR_QOS(0xf);
+	attr |= V9_ATTR_QOS_OVERRIDE | V9_ATTR_QOS(V9_QOS);
+	writel(attr, mmu->base + V9_REG_ATTR_VM);
+
+	writel(0, mmu->base + V9_REG_PMMU_INDICATOR);
+	readl(mmu->base + V9_REG_PMMU_INDICATOR);
+	writel(V9_STREAM_CFG(0), mmu->base + V9_REG_STREAM_CFG(0));
+	for (i = 0; i < ARRAY_SIZE(v9_streams); i++) {
+		const struct v9_stream *st = &v9_streams[i];
+
+		writel(V9_STREAM_CFG(st->stlb), mmu->base + V9_REG_STREAM_CFG(st->index));
+		writel(V9_MATCH_DIR_RW, mmu->base + V9_REG_STREAM_MATCH_CFG(st->index));
+		writel(st->sid, mmu->base + V9_REG_STREAM_SID_VALUE(st->index));
+		writel(0x3f, mmu->base + V9_REG_STREAM_SID_MASK(st->index));
+	}
+	writel(readl(mmu->base + V9_REG_CTRL_VM) | V9_CTRL_ENABLE,
+	       mmu->base + V9_REG_CTRL_VM);
+	writel(1, mmu->base + V9_REG_ALL_INV_VM);
+}
+
 static int aoc_sysmmu_fill(struct aoc_sysmmu *mmu,
 			   const struct aoc_sysmmu_window *win, unsigned int n)
 {
@@ -242,7 +317,8 @@ static int aoc_sysmmu_fill(struct aoc_sysmmu *mmu,
 					i, w->iova + off);
 				return -EINVAL;
 			}
-			*ent = (u32)((w->pa + off) >> PG_ENT_SHIFT) | LV1_SECT;
+			*ent = (u32)((w->pa + off) >> PG_ENT_SHIFT) | LV1_SECT |
+			       (mmu->v9 ? (V9_PTE_AP_READ | V9_PTE_AP_WRITE) : 0);
 		}
 		dev_info(mmu->dev, "window %u: %#010x -> %pa, %u MiB\n",
 			 i, w->iova, &w->pa, w->size >> SECT_ORDER);
@@ -255,6 +331,11 @@ static void aoc_sysmmu_program(struct aoc_sysmmu *mmu)
 {
 	unsigned int v, ntlb;
 	u32 cfg, ctrl;
+
+	if (mmu->v9) {
+		aoc_sysmmu_program_v9(mmu);
+		return;
+	}
 
 	/*
 	 * As __sysmmu_enable(): block, QoS and TLBs (__sysmmu_init_config()),
@@ -310,6 +391,10 @@ bool aoc_sysmmu_lost(struct aoc_sysmmu *mmu)
 {
 	if (!mmu->enabled)
 		return false;
+	if (mmu->v9)
+		return !(readl(mmu->base + V9_REG_CTRL_VM) & V9_CTRL_ENABLE) ||
+		       readl(mmu->base + V9_REG_FLPT_BASE_VM) !=
+		       (u32)(mmu->table_dma >> PT_BASE_SHIFT);
 	if (!(readl(mmu->base + REG_MMU_CTRL) & CTRL_MMU_ENABLE))
 		return true;
 	if (!mmu->vm)
@@ -373,7 +458,8 @@ int aoc_sysmmu_enable(struct aoc_sysmmu *mmu,
 		return -EINVAL;
 	}
 
-	if (!mmu->irq_on) {
+	/* v9: the fault registers are not mapped yet, so no interrupt handler */
+	if (!mmu->v9 && !mmu->irq_on) {
 		ret = request_irq(mmu->irq, aoc_sysmmu_irq, 0, dev_name(mmu->dev),
 				  mmu);
 		if (ret) {
@@ -405,6 +491,16 @@ void aoc_sysmmu_disable(struct aoc_sysmmu *mmu)
 
 	if (!mmu->enabled)
 		return;
+	if (mmu->v9) {
+		writel(readl(mmu->base + V9_REG_CTRL_VM) & ~V9_CTRL_ENABLE,
+		       mmu->base + V9_REG_CTRL_VM);
+		writel(0, mmu->base + V9_REG_FLPT_BASE_VM);
+		writel(1, mmu->base + V9_REG_ALL_INV_VM);
+		dma_unmap_single(mmu->dev, mmu->table_dma, LV1_TABLE_SIZE,
+				 DMA_TO_DEVICE);
+		mmu->enabled = false;
+		return;
+	}
 	writel(mmu->saved_ctrl | CTRL_MMU_BLOCK, mmu->base + REG_MMU_CTRL);
 	if (mmu->vm)
 		for (v = 0; v < MAX_VIDS; v++)
@@ -466,6 +562,7 @@ static int aoc_sysmmu_probe(struct platform_device *pdev)
 	if (!mmu)
 		return -ENOMEM;
 	mmu->dev = dev;
+	mmu->v9 = of_device_is_compatible(dev->of_node, "google,zuma-aoc-sysmmu");
 
 	/* Mapped only; BLK_AOC may be off, so no register is read here */
 	mmu->base = devm_platform_ioremap_resource(pdev, 0);
