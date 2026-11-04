@@ -526,3 +526,35 @@
 		read-only;
 	};
 };
+
+/*
+ * Bluetooth, on the APM's USI1 UART (0x155d0000) as in Google's GPL zuma
+ * Bluetooth DT: BT_REG_ON gpn8-0, BT_DEV_WAKE gpn9-0, BT_HOST_WAKE gpn6-0.
+ * The chip is not confirmed: the Wi-Fi is a BCM4398 and hci_bcm has no entry
+ * for it, so this uses the BCM4389's (30 ms after REG_ON). Disabled until
+ * the firmware (brcm/BCM.google,zuma-husky.hcd) is in place; the test runs
+ * enable it by hand (see device/husky/BLUETOOTH-PLAN.md).
+ */
+&sysreg_apm {
+	status = "okay";
+};
+
+&usi_apm1 {
+	status = "okay";
+};
+
+&uart18 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4389-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_power &bt_host_wake>;
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpn8 0 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpn9 0 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpn6 0 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "host-wakeup";
+		status = "disabled";
+	};
+};
