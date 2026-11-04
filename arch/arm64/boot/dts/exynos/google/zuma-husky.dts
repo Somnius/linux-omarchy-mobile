@@ -651,3 +651,27 @@
 &trusty {
 	status = "okay";
 };
+
+/*
+ * The AoC bring-up (AOC-PLAN.md Z1b): the nodes the read-only "info" needs.
+ * The gs201_aoc_boot module is blacklisted and loaded by hand.
+ */
+&aoc_sysmmu {
+	status = "okay";
+};
+
+&aoc_mbox_a32 {
+	status = "okay";
+};
+
+&aoc_mbox_f1 {
+	status = "okay";
+};
+
+&aoc_mbox_p6 {
+	status = "okay";
+};
+
+&aoc {
+	status = "okay";
+};
