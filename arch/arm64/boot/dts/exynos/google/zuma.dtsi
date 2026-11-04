@@ -1208,7 +1208,8 @@
 		 */
 		gsa: gsa@16490000 {
 			compatible = "google,zuma-gsa";
-			reg = <0x16490000 0x1000>;
+			/* the non-secure mailbox, then the GSA's own S2MPU (s2mpu_s0_gsa) */
+			reg = <0x16490000 0x1000>, <0x16470000 0x10000>;
 			interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
