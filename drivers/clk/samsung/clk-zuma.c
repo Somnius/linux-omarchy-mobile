@@ -399,6 +399,7 @@ static const struct samsung_cmu_info g3d_cmu __initconst = {
 PNAME(mout_peric1_noc_user_parents) = { "oscclk", "zuma_dout_peric1_noc" };
 PNAME(mout_peric1_usi11_user_parents) = { "oscclk", "zuma_dout_peric1_ip" };
 PNAME(mout_peric1_usi9_user_parents) = { "oscclk", "zuma_dout_peric1_ip" };
+PNAME(mout_peric1_usi0_user_parents) = { "oscclk", "zuma_dout_peric1_ip" };
 
 static const struct samsung_mux_clock peric1_muxes[] __initconst = {
 	MUX_F(CLK_MOUT_PERIC1_NOC_USER, "zuma_mout_peric1_noc_user",
@@ -407,6 +408,8 @@ static const struct samsung_mux_clock peric1_muxes[] __initconst = {
 	      mout_peric1_usi11_user_parents, 0x640, 4, 1, 0, CLK_MUX_READ_ONLY),
 	MUX_F(CLK_MOUT_PERIC1_USI9_USER, "zuma_mout_peric1_usi9_user",
 	      mout_peric1_usi9_user_parents, 0x690, 4, 1, 0, CLK_MUX_READ_ONLY),
+	MUX_F(CLK_MOUT_PERIC1_USI0_USER, "zuma_mout_peric1_usi0_user",
+	      mout_peric1_usi0_user_parents, 0x620, 4, 1, 0, CLK_MUX_READ_ONLY),
 };
 
 static const struct samsung_div_clock peric1_dividers[] __initconst = {
@@ -415,6 +418,9 @@ static const struct samsung_div_clock peric1_dividers[] __initconst = {
 	      CLK_DIVIDER_READ_ONLY),
 	DIV_F(CLK_DOUT_PERIC1_USI9, "zuma_dout_peric1_usi9",
 	      "zuma_mout_peric1_usi9_user", 0x1824, 0, 4, 0,
+	      CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DOUT_PERIC1_USI0, "zuma_dout_peric1_usi0",
+	      "zuma_mout_peric1_usi0_user", 0x1808, 0, 4, 0,
 	      CLK_DIVIDER_READ_ONLY),
 };
 
@@ -438,6 +444,12 @@ static const struct samsung_gate_clock peric1_gates[] __initconst = {
 	     "zuma_mout_peric1_noc_user", 0x2074, 21, 0, 0),
 	GATE(CLK_GOUT_PERIC1_USI9_RSTNSYNC, "zuma_gout_peric1_usi9_rstnsync",
 	     "zuma_dout_peric1_usi9", 0x20a0, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI0_IPCLK, "zuma_gout_peric1_usi0_ipclk",
+	     "zuma_dout_peric1_usi0", 0x2038, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI0_PCLK, "zuma_gout_peric1_usi0_pclk",
+	     "zuma_mout_peric1_noc_user", 0x203c, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI0_RSTNSYNC, "zuma_gout_peric1_usi0_rstnsync",
+	     "zuma_dout_peric1_usi0", 0x208c, 21, 0, 0),
 };
 
 static const struct samsung_cmu_info peric1_cmu __initconst = {
@@ -449,7 +461,7 @@ static const struct samsung_cmu_info peric1_cmu __initconst = {
 	.nr_ro_gate_clks = ARRAY_SIZE(peric1_ro_gates),
 	.gate_clks = peric1_gates,
 	.nr_gate_clks = ARRAY_SIZE(peric1_gates),
-	.nr_clk_ids = CLK_GOUT_PERIC1_USI9_RSTNSYNC + 1,
+	.nr_clk_ids = CLK_GOUT_PERIC1_USI0_RSTNSYNC + 1,
 	.clk_name = "bus",
 };
 
