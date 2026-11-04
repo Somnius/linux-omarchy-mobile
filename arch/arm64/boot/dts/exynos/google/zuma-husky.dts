@@ -642,3 +642,12 @@
 &gsa {
 	status = "okay";
 };
+
+/*
+ * Trusty, for the AoC bring-up (AOC-PLAN.md Z2). The trusty modules are
+ * blacklisted on the phone and loaded by hand: binding calls into the
+ * secure world.
+ */
+&trusty {
+	status = "okay";
+};

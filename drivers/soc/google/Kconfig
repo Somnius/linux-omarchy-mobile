@@ -16,6 +16,16 @@ config GOOGLE_GSA
 	  This driver gives the AoC driver the GSA's firmware loading and
 	  exposes status queries in debugfs, for bring-up.
 
+config GOOGLE_GSA_TRUSTY
+	bool "AoC state commands through Trusty"
+	depends on GOOGLE_GSA && TRUSTY_VIRTIO_IPC
+	depends on TRUSTY_VIRTIO_IPC=y || GOOGLE_GSA=m
+	help
+	  Send AoC state commands (start, reset, get state) to the GSA's
+	  hwmgr.aoc service in Trusty, as Google's kernels do. Without it,
+	  only the mailbox command can be tried (aoc_cmd_mbox=1), which no
+	  Google kernel uses.
+
 endmenu
 
 endif

@@ -1180,6 +1180,29 @@
 		};
 
 		/*
+		 * Trusty, the secure OS that runs from the bootloader's tzsw
+		 * image; its IPIs 8-15 are GIC SGIs 8-15 (Google's
+		 * gs101-trusty.dtsi, shared by zuma).
+		 */
+		trusty: trusty {
+			compatible = "android,trusty-smc-v1";
+			status = "disabled";
+
+			irq {
+				compatible = "android,trusty-irq-v1";
+				ipi-range = <8 15 8>;
+			};
+
+			log {
+				compatible = "android,trusty-log-v1";
+			};
+
+			virtio {
+				compatible = "android,trusty-virtio-v1";
+			};
+		};
+
+		/*
 		 * The GSA's non-secure mailbox, as Google's zuma-gsa.dtsi: the
 		 * channel the AoC firmware is authenticated and started through.
 		 */

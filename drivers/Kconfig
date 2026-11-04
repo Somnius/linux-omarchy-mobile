@@ -183,6 +183,8 @@ source "drivers/soundwire/Kconfig"
 
 source "drivers/soc/Kconfig"
 
+source "drivers/trusty/Kconfig"
+
 source "drivers/pmdomain/Kconfig"
 
 source "drivers/devfreq/Kconfig"
