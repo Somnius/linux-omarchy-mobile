@@ -555,6 +555,5 @@
 		device-wakeup-gpios = <&gpn9 0 GPIO_ACTIVE_HIGH>;
 		interrupts-extended = <&gpn6 0 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "host-wakeup";
-		status = "disabled";
 	};
 };
