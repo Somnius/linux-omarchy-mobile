@@ -460,11 +460,31 @@ static int aoc_blk_show(struct seq_file *s, void *unused)
 		seq_puts(s, "BLK_AOC is off (no acknowledge): not read\n");
 		return 0;
 	}
+	if (of_device_is_compatible(ab->dev->of_node, "google,zuma-aoc")) {
+		/* zuma: the S2MPU is read through the separate "s2mpu" file */
+		aoc_sysmmu_dump(ab->mmu, "blk");
+		seq_puts(s, "System MMU: see the kernel log (S2MPU: use the s2mpu file)\n");
+		return 0;
+	}
 	seq_printf(s, "aoc s2mpu CTRL0 %#x\n", readl(ab->s2mpu + AOC_S2MPU_CTRL0));
 	aoc_sysmmu_dump(ab->mmu, "blk");
 	seq_puts(s, "System MMU: see the kernel log\n");
 	return 0;
 }
+
+static int aoc_s2mpu_show(struct seq_file *s, void *unused)
+{
+	struct aoc_boot *ab = s->private;
+
+	if (!aoc_blk_on(ab)) {
+		seq_puts(s, "BLK_AOC is off (no acknowledge): not read\n");
+		return 0;
+	}
+	dev_info(ab->dev, "reading the AoC S2MPU CTRL0\n");
+	seq_printf(s, "aoc s2mpu CTRL0 %#x\n", readl(ab->s2mpu + AOC_S2MPU_CTRL0));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(aoc_s2mpu);
 DEFINE_SHOW_ATTRIBUTE(aoc_blk);
 
 static int aoc_pcu_show(struct seq_file *s, void *unused)
@@ -1006,6 +1026,7 @@ static int aoc_boot_probe(struct platform_device *pdev)
 	debugfs_create_file("info", 0400, ab->debugfs, ab, &aoc_info_fops);
 	debugfs_create_file("power", 0200, ab->debugfs, ab, &aoc_power_fops);
 	debugfs_create_file("blk", 0400, ab->debugfs, ab, &aoc_blk_fops);
+	debugfs_create_file("s2mpu", 0400, ab->debugfs, ab, &aoc_s2mpu_fops);
 	debugfs_create_file("load", 0200, ab->debugfs, ab, &aoc_load_fops);
 	debugfs_create_file("start", 0200, ab->debugfs, ab, &aoc_start_fops);
 	debugfs_create_file("control", 0400, ab->debugfs, ab, &aoc_control_fops);

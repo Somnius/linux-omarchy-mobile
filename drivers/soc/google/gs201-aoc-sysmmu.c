@@ -129,9 +129,28 @@ struct aoc_sysmmu {
 
 void aoc_sysmmu_dump(struct aoc_sysmmu *mmu, const char *when)
 {
-	u32 ver = readl(mmu->base + REG_MMU_VERSION);
-	u32 capa1 = readl(mmu->base + REG_MMU_CAPA1);
+	u32 ver, capa1;
 	unsigned int v;
+
+	/*
+	 * zuma's block is a v9 System MMU: CAPA0/CAPA1, CFG and the interrupt
+	 * registers of the gs201 (v8) map are not in it, and reading them
+	 * reset the phone (2026-11-04). Only CTRL, STATUS and VERSION, which
+	 * Google's samsung-iommu-v9.c also reads, are touched, one per line.
+	 */
+	if (of_device_is_compatible(mmu->dev->of_node, "google,zuma-aoc-sysmmu")) {
+		dev_info(mmu->dev, "%s: v9 read, version register\n", when);
+		ver = readl(mmu->base + REG_MMU_VERSION);
+		dev_info(mmu->dev, "%s: version %#x\n", when, ver);
+		dev_info(mmu->dev, "%s: ctrl %#x\n", when,
+			 readl(mmu->base + REG_MMU_CTRL));
+		dev_info(mmu->dev, "%s: status %#x\n", when,
+			 readl(mmu->base + REG_MMU_STATUS));
+		return;
+	}
+
+	ver = readl(mmu->base + REG_MMU_VERSION);
+	capa1 = readl(mmu->base + REG_MMU_CAPA1);
 
 	mmu->vm = capa1 & CAPA1_VCR_ENABLED;
 	dev_info(mmu->dev,
