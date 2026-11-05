@@ -796,6 +796,25 @@ static snd_pcm_uframes_t snd_aoc_pcm_pointer(struct snd_soc_component *component
 
 	pointer = bytes_to_frames(substream->runtime, alsa_stream->pos);
 
+	/*
+	 * TEST (zuma, REPORT 16aw): the AoC deep-buffer entrypoint drops what was written before the
+	 * stream started (its read index jumps to the write index) and raises no interrupt for it, so
+	 * a client that pre-fills (PipeWire) never sees the buffer drain and stops writing. Report the
+	 * position from the live read index for an interrupt-driven playback stream that is running.
+	 */
+	if (alsa_stream->isr_type == INTR && alsa_stream->running && alsa_stream->dev &&
+	    substream->stream == SNDRV_PCM_STREAM_PLAYBACK && alsa_stream->buffer_size) {
+		unsigned long consumed = aoc_ring_bytes_read(alsa_stream->dev->service, AOC_DOWN);
+		unsigned long live;
+
+		if (unlikely(alsa_stream->n_overflow))
+			live = (consumed + 0x100000000UL * alsa_stream->n_overflow -
+				alsa_stream->hw_ptr_base) % alsa_stream->buffer_size;
+		else
+			live = (consumed - alsa_stream->hw_ptr_base) % alsa_stream->buffer_size;
+		pointer = bytes_to_frames(substream->runtime, live);
+	}
+
 	pr_debug("pcm pointer  = %d\n", pointer);
 	return pointer;
 }
