@@ -362,6 +362,33 @@ static const struct regmap_range zuma_pmu_registers[] = {
 	regmap_reg_range(ZUMA_PHY_CTRL_PCIE1, ZUMA_PHY_CTRL_PCIE1),
 	/* a hint TF-A reads, not a status register: see zuma_pmu_regmap_init() */
 	regmap_reg_range(ZUMA_PMU_INFORM0, ZUMA_PMU_INFORM0),
+	/* power domain configuration and status (exynos-pm-domains.c), for unused blocks only */
+	/* power domain g2d */
+	regmap_reg_range(0x1e80, 0x1e84),
+	/* power domain gdc */
+	regmap_reg_range(0x1f00, 0x1f04),
+	/* power domain gse */
+	regmap_reg_range(0x1f80, 0x1f84),
+	/* power domain mcsc */
+	regmap_reg_range(0x2000, 0x2004),
+	/* power domain mfc */
+	regmap_reg_range(0x2080, 0x2084),
+	/* power domain rgbp */
+	regmap_reg_range(0x2100, 0x2104),
+	/* power domain tnr */
+	regmap_reg_range(0x2180, 0x2184),
+	/* power domain yuvp */
+	regmap_reg_range(0x2200, 0x2204),
+	/* power domain aur */
+	regmap_reg_range(0x2300, 0x2304),
+	/* power domain bw */
+	regmap_reg_range(0x2380, 0x2384),
+	/* power domain eh */
+	regmap_reg_range(0x2400, 0x2404),
+	/* power domain ispfe */
+	regmap_reg_range(0x2480, 0x2484),
+	/* power domain tpu */
+	regmap_reg_range(0x2500, 0x2504),
 };
 
 static const struct regmap_range zuma_pmu_ro_registers[] = {
