@@ -363,6 +363,20 @@ static const struct regmap_range zuma_pmu_registers[] = {
 	/* a hint TF-A reads, not a status register: see zuma_pmu_regmap_init() */
 	regmap_reg_range(ZUMA_PMU_INFORM0, ZUMA_PMU_INFORM0),
 	/* power domain configuration and status (exynos-pm-domains.c), for unused blocks only */
+	/* power domain g3d (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x1a80, 0x1a84),
+	/* power domain embedded_g3d (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x1c80, 0x1c84),
+	/* power domain dpub (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x1d00, 0x1d04),
+	/* power domain dpuf0 (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x1d80, 0x1d84),
+	/* power domain dpuf1 (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x1e00, 0x1e04),
+	/* power domain aoc (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x2280, 0x2284),
+	/* power domain hsi1 (status read only while pd_ignore_unused is set) */
+	regmap_reg_range(0x2b00, 0x2b04),
 	/* power domain g2d */
 	regmap_reg_range(0x1e80, 0x1e84),
 	/* power domain gdc */
