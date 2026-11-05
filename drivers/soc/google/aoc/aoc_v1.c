@@ -304,7 +304,7 @@ int configure_iommu_interrupts(struct device *dev, struct device_node *iommu_nod
 }
 EXPORT_SYMBOL_GPL(configure_iommu_interrupts);
 
-#if IS_ENABLED(CONFIG_SOC_GS101)
+/* TEST (zuma): the stock zuma aoc node has ssmt_aoc at 0x19060000 (0x5000); same PID registers as gs101 [I] */
 void aoc_configure_ssmt(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -317,6 +317,10 @@ void aoc_configure_ssmt(struct platform_device *pdev)
 		return;
 	}
 
+	dev_info(dev, "ssmt_aoc: before: stream 0 read PID %08x write PID %08x\n",
+		 readl_relaxed(ssmt_base + SSMT_NS_READ_PID(0)),
+		 readl_relaxed(ssmt_base + SSMT_NS_WRITE_PID(0)));
+
 	/* Configure registers NS_READ_PID_<n>, NS_WRITE_PID_<n> for each stream id */
 	for (stream_id = 0; stream_id <= 32; stream_id++) {
 		/* Skip over stream id 31 */
@@ -326,13 +330,11 @@ void aoc_configure_ssmt(struct platform_device *pdev)
 		writel_relaxed(SSMT_BYPASS_VALUE, ssmt_base + SSMT_NS_WRITE_PID(stream_id));
 	}
 
+	dev_info(dev, "ssmt_aoc: stream 0 read PID %08x write PID %08x (after bypass)\n",
+		 readl_relaxed(ssmt_base + SSMT_NS_READ_PID(0)),
+		 readl_relaxed(ssmt_base + SSMT_NS_WRITE_PID(0)));
 	devm_iounmap(dev, ssmt_base);
 }
-#else
-void aoc_configure_ssmt(struct platform_device *pdev
-	__attribute__((unused)))
-{}
-#endif
 EXPORT_SYMBOL_GPL(aoc_configure_ssmt);
 
 void configure_crash_interrupts(struct aoc_prvdata *prvdata, bool enable)
