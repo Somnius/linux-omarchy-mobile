@@ -1224,6 +1224,8 @@
 			reg = <0x154b0000 0x1000>, <0x190c0000 0x1000>,
 			      <0x10000000 0x100>;
 			reg-names = "aoc_req", "s2mpu", "chipid";
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "watchdog";
 			memory-region = <&{/reserved-memory/aoc@94000000}>;
 			google,gsa = <&gsa>;
 			google,sysmmu = <&aoc_sysmmu>;
