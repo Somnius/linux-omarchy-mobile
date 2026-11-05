@@ -736,6 +736,11 @@
 		google,tdm-rx-slots = <0 1>;
 		google,tdm-tx-slots = <0 2 4 6>;
 		status = "okay";
+
+		controller-data {
+			/* stock: samsung,spi-feedback-delay = <1> */
+			samsung,spi-feedback-delay = <1>;
+		};
 	};
 
 	amp_bottom: amplifier@1 {
@@ -762,5 +767,9 @@
 		google,tdm-rx-slots = <1 0>;
 		google,tdm-tx-slots = <1 3 5 7>;
 		status = "okay";
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+		};
 	};
 };
