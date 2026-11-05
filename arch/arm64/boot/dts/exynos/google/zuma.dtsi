@@ -1246,6 +1246,7 @@
 
 		aoc_mbox_a32: mailbox@15200000 {
 			compatible = "google,mailbox-whitechapel";
+			wc-mbox-non-wake-channels = <0xf000>;
 			reg = <0x15200000 0x1000>;
 			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
@@ -1254,6 +1255,7 @@
 
 		aoc_mbox_f1: mailbox@15220000 {
 			compatible = "google,mailbox-whitechapel";
+			wc-mbox-non-wake-channels = <0xf000>;
 			reg = <0x15220000 0x1000>;
 			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
@@ -1262,6 +1264,7 @@
 
 		aoc_mbox_p6: mailbox@15240000 {
 			compatible = "google,mailbox-whitechapel";
+			wc-mbox-non-wake-channels = <0xf000>;
 			reg = <0x15240000 0x1000>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
