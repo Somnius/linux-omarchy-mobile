@@ -1373,8 +1373,8 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 	 */
 	chipid_match = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
 	if (regid != chipid_match) {
-		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n",
-			regid, chipid_match);
+		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X (TEST: otp status %x, revid %x)\n",
+			regid, chipid_match, int_status, reg_revid);
 		ret = -ENODEV;
 		goto err;
 	}
