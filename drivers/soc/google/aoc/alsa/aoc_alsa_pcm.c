@@ -348,6 +348,8 @@ static void snd_aoc_pcm_free(struct snd_pcm_runtime *runtime)
 	pr_debug("Freeing up alsa stream here ..\n");
 	pr_debug("%s:", __func__);
 
+	if (runtime->private_data)
+		kfree(((struct aoc_alsa_stream *)runtime->private_data)->prefill);
 	kfree(runtime->private_data);
 	runtime->private_data = NULL;
 }
@@ -668,6 +670,18 @@ static int snd_aoc_pcm_prepare(struct snd_soc_component *component,
 	alsa_stream->n_overflow = 0;
 	alsa_stream->prev_buffer_cnt = 0;
 
+	/* zuma: keep the pre-start data so it can be written again after the AoC has started */
+	kfree(alsa_stream->prefill);
+	alsa_stream->prefill = NULL;
+	alsa_stream->prefill_len = 0;
+	alsa_stream->prefill_cap = 0;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !alsa_stream->cstream &&
+	    runtime->access != SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) {
+		alsa_stream->prefill = kmalloc(alsa_stream->buffer_size, GFP_KERNEL);
+		if (alsa_stream->prefill)
+			alsa_stream->prefill_cap = alsa_stream->buffer_size;
+	}
+
 	pr_debug("pcm prepare: hw_ptr_base = %lu\n", alsa_stream->hw_ptr_base);
 
 	pr_debug("buffer_size=%d, period_size=%d pos=%d frame_bits=%d\n", alsa_stream->buffer_size,
@@ -706,6 +720,27 @@ static int snd_aoc_pcm_trigger(struct snd_soc_component *component,
 
 			err = aoc_audio_start(alsa_stream);
 			aoc_pcm_ring_log(alsa_stream, "started");
+			if (err == 0 && alsa_stream->prefill && alsa_stream->prefill_len &&
+			    alsa_stream->dev) {
+				/*
+				 * The AoC deep-buffer entrypoint throws away what was written before
+				 * the start (read index := write index). Count from the new read
+				 * index and write the pre-start data again.
+				 */
+				unsigned long rp = aoc_ring_bytes_read(alsa_stream->dev->service, AOC_DOWN);
+
+				alsa_stream->hw_ptr_base = rp;
+				alsa_stream->prev_consumed = rp;
+				alsa_stream->pos = 0;
+				alsa_stream->prev_pos = 0;
+				alsa_stream->pos_delta = 0;
+				alsa_stream->n_overflow = 0;
+				alsa_stream->prev_buffer_cnt = 0;
+				aoc_service_write(alsa_stream->dev, alsa_stream->prefill,
+						  alsa_stream->prefill_len, NONBLOCKING);
+				aoc_pcm_ring_log(alsa_stream, "refilled");
+				alsa_stream->prefill_len = 0;
+			}
 			if (err == 0) {
 				alsa_stream->running = 1;
 				alsa_stream->draining = 1;

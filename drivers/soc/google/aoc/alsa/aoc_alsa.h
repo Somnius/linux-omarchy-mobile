@@ -347,6 +347,10 @@ struct aoc_chip {
 };
 
 struct aoc_alsa_stream {
+	/* zuma: data written before the start, written again once the AoC has started (REPORT 16aw) */
+	void *prefill;
+	size_t prefill_len;
+	size_t prefill_cap;
 	struct aoc_chip *chip;
 	struct snd_pcm_substream *substream;
 	struct snd_compr_stream *cstream; /* compress offload stream */
