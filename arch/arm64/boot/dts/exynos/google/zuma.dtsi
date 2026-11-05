@@ -1543,6 +1543,76 @@
 				label = "tpu";
 				status = "disabled";
 			};
+
+
+			/*
+			 * Status-only domains (REPORT 16bd): described so that genpd reads
+			 * whether the bootloader left them on. Never enable them without
+			 * their driver's power-domains property.
+			 */
+			pd_g3d: power-domain@1a80 {
+				compatible = "google,zuma-pd";
+				reg = <0x1a80 0x80>;
+				#power-domain-cells = <0>;
+				label = "g3d";
+				status = "disabled";
+			};
+
+			pd_embedded_g3d: power-domain@1c80 {
+				compatible = "google,zuma-pd";
+				reg = <0x1c80 0x80>;
+				#power-domain-cells = <0>;
+				label = "embedded_g3d";
+				status = "disabled";
+			};
+
+			pd_dpub: power-domain@1d00 {
+				compatible = "google,zuma-pd";
+				reg = <0x1d00 0x80>;
+				#power-domain-cells = <0>;
+				label = "dpub";
+				status = "disabled";
+			};
+
+			pd_dpuf0: power-domain@1d80 {
+				compatible = "google,zuma-pd";
+				reg = <0x1d80 0x80>;
+				#power-domain-cells = <0>;
+				label = "dpuf0";
+				status = "disabled";
+			};
+
+			pd_dpuf1: power-domain@1e00 {
+				compatible = "google,zuma-pd";
+				reg = <0x1e00 0x80>;
+				#power-domain-cells = <0>;
+				label = "dpuf1";
+				status = "disabled";
+			};
+
+			pd_aoc: power-domain@2280 {
+				compatible = "google,zuma-pd";
+				reg = <0x2280 0x80>;
+				#power-domain-cells = <0>;
+				label = "aoc";
+				status = "disabled";
+			};
+
+			pd_hsi0: power-domain@2a80 {
+				compatible = "google,zuma-pd";
+				reg = <0x2a80 0x80>;
+				#power-domain-cells = <0>;
+				label = "hsi0";
+				status = "disabled";
+			};
+
+			pd_hsi1: power-domain@2b00 {
+				compatible = "google,zuma-pd";
+				reg = <0x2b00 0x80>;
+				#power-domain-cells = <0>;
+				label = "hsi1";
+				status = "disabled";
+			};
 		};
 
 		pinctrl_gpio_alive: pinctrl@154d0000 {
