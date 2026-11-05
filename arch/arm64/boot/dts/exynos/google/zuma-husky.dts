@@ -735,7 +735,7 @@
 		cirrus,gpio2-output-enable;
 		google,tdm-rx-slots = <0 1>;
 		google,tdm-tx-slots = <0 2 4 6>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	amp_bottom: amplifier@1 {
@@ -761,6 +761,6 @@
 		cirrus,gpio2-output-enable;
 		google,tdm-rx-slots = <1 0>;
 		google,tdm-tx-slots = <1 3 5 7>;
-		status = "disabled";
+		status = "okay";
 	};
 };
