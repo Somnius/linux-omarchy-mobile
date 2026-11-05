@@ -124,6 +124,9 @@ struct aoc_sysmmu {
 	bool irq_on;
 	bool enabled;
 	bool v9;
+	u32 *l2[8];		/* v9: second-level tables (4 KiB pages) */
+	dma_addr_t l2_dma[8];
+	unsigned int n_l2;
 	u32 saved_ctrl;
 	u32 saved_ctrl_vm[MAX_VIDS];
 };
@@ -285,12 +288,71 @@ static void aoc_sysmmu_program_v9(struct aoc_sysmmu *mmu)
 	writel(1, mmu->base + V9_REG_ALL_INV_VM);
 }
 
+
+#define V9_SLPD_FLAG		1
+#define V9_SPAGE_FLAG		2
+#define V9_SLPD_AP_READ		BIT(2)
+#define V9_SLPD_AP_WRITE	BIT(3)
+
+/* v9: map @w with 4 KiB pages in second-level tables (256 entries per 1 MiB) */
+static int aoc_sysmmu_fill_small(struct aoc_sysmmu *mmu,
+				 const struct aoc_sysmmu_window *w, unsigned int idx)
+{
+	u32 off;
+
+	for (off = 0; off < w->size; off += SZ_4K) {
+		u32 iova = w->iova + off;
+		u32 *l1 = &mmu->table[iova >> SECT_ORDER];
+		u32 *l2;
+
+		if (!*l1) {
+			dma_addr_t dma;
+
+			if (mmu->n_l2 >= ARRAY_SIZE(mmu->l2))
+				return -ENOSPC;
+			l2 = (u32 *)get_zeroed_page(GFP_KERNEL);
+			if (!l2)
+				return -ENOMEM;
+			dma = dma_map_single(mmu->dev, l2, PAGE_SIZE, DMA_TO_DEVICE);
+			if (dma_mapping_error(mmu->dev, dma) || dma != virt_to_phys(l2)) {
+				if (!dma_mapping_error(mmu->dev, dma))
+					dma_unmap_single(mmu->dev, dma, PAGE_SIZE, DMA_TO_DEVICE);
+				free_page((unsigned long)l2);
+				return -EINVAL;
+			}
+			mmu->l2[mmu->n_l2] = l2;
+			mmu->l2_dma[mmu->n_l2] = dma;
+			mmu->n_l2++;
+			*l1 = (u32)(dma >> PG_ENT_SHIFT) | V9_SLPD_FLAG;
+		} else if ((*l1 & 7) != V9_SLPD_FLAG) {
+			dev_err(mmu->dev, "window %u overlaps a section at %#x\n", idx, iova);
+			return -EINVAL;
+		}
+		l2 = phys_to_virt((phys_addr_t)(*l1 & ~0x3fU) << PG_ENT_SHIFT);
+		l2 += (iova & (SECT_SIZE - 1)) >> 12;
+		if (*l2) {
+			dev_err(mmu->dev, "window %u overlaps at %#x\n", idx, iova);
+			return -EINVAL;
+		}
+		*l2 = (u32)((w->pa + off) >> PG_ENT_SHIFT) | V9_SPAGE_FLAG |
+		      V9_SLPD_AP_READ | V9_SLPD_AP_WRITE;
+	}
+	dev_info(mmu->dev, "window %u: %#010x -> %pa, %u KiB in 4 KiB pages\n",
+		 idx, w->iova, &w->pa, w->size >> 10);
+	return 0;
+}
+
 static int aoc_sysmmu_fill(struct aoc_sysmmu *mmu,
 			   const struct aoc_sysmmu_window *win, unsigned int n)
 {
 	unsigned int i;
 	u32 off;
 
+	for (i = 0; i < mmu->n_l2; i++) {
+		dma_unmap_single(mmu->dev, mmu->l2_dma[i], PAGE_SIZE, DMA_TO_DEVICE);
+		free_page((unsigned long)mmu->l2[i]);
+	}
+	mmu->n_l2 = 0;
 	memset(mmu->table, 0, LV1_TABLE_SIZE);
 	if (empty) {
 		dev_info(mmu->dev, "empty table: every AoC access will fault\n");
@@ -300,6 +362,18 @@ static int aoc_sysmmu_fill(struct aoc_sysmmu *mmu,
 	for (i = 0; i < n; i++) {
 		const struct aoc_sysmmu_window *w = &win[i];
 
+		/* v9: a window that is not 1 MiB sections is mapped with 4 KiB pages */
+		if (mmu->v9 && (!IS_ALIGNED(w->iova, SECT_SIZE) ||
+				!IS_ALIGNED(w->pa, SECT_SIZE) ||
+				!IS_ALIGNED(w->size, SECT_SIZE)) && w->size &&
+		    IS_ALIGNED(w->iova, SZ_4K) && IS_ALIGNED(w->pa, SZ_4K) &&
+		    IS_ALIGNED(w->size, SZ_4K)) {
+			int ret = aoc_sysmmu_fill_small(mmu, w, i);
+
+			if (ret)
+				return ret;
+			continue;
+		}
 		if (!IS_ALIGNED(w->iova, SECT_SIZE) ||
 		    !IS_ALIGNED(w->pa, SECT_SIZE) ||
 		    !IS_ALIGNED(w->size, SECT_SIZE) || !w->size ||
@@ -323,6 +397,8 @@ static int aoc_sysmmu_fill(struct aoc_sysmmu *mmu,
 		dev_info(mmu->dev, "window %u: %#010x -> %pa, %u MiB\n",
 			 i, w->iova, &w->pa, w->size >> SECT_ORDER);
 	}
+	for (i = 0; i < mmu->n_l2; i++)
+		dma_sync_single_for_device(mmu->dev, mmu->l2_dma[i], PAGE_SIZE, DMA_TO_DEVICE);
 	return 0;
 }
 
@@ -498,6 +574,11 @@ void aoc_sysmmu_disable(struct aoc_sysmmu *mmu)
 		writel(1, mmu->base + V9_REG_ALL_INV_VM);
 		dma_unmap_single(mmu->dev, mmu->table_dma, LV1_TABLE_SIZE,
 				 DMA_TO_DEVICE);
+		for (v = 0; v < mmu->n_l2; v++) {
+			dma_unmap_single(mmu->dev, mmu->l2_dma[v], PAGE_SIZE, DMA_TO_DEVICE);
+			free_page((unsigned long)mmu->l2[v]);
+		}
+		mmu->n_l2 = 0;
 		mmu->enabled = false;
 		return;
 	}
