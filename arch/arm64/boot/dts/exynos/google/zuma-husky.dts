@@ -709,7 +709,7 @@
 	pinctrl-0 = <&amp_cs2>;
 	pinctrl-names = "default";
 	num-cs = <2>;
-	cs-gpios = <0>, <&gpn1 0 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpp20 3 GPIO_ACTIVE_LOW>, <&gpn1 0 GPIO_ACTIVE_LOW>;
 
 	amp_top: amplifier@0 {
 		compatible = "cirrus,cs35l41";
