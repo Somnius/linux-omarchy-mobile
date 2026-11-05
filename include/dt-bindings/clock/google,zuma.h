@@ -59,6 +59,11 @@
 #define CLK_DOUT_HSI0_USI2		8
 #define CLK_GOUT_HSI0_USI2_IP		9
 #define CLK_GOUT_HSI0_USI2_PCLK		10
+#define CLK_MOUT_HSI0_USI1		11
+#define CLK_GOUT_HSI0_USI1_SOURCE	12
+#define CLK_DOUT_HSI0_USI1		13
+#define CLK_GOUT_HSI0_USI1_IP		14
+#define CLK_GOUT_HSI0_USI1_PCLK		15
 
 /*
  * CMU_PERIC1: USI11, the I2C bus of the battery, charger and USB-C chips, and

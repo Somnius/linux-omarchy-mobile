@@ -11,6 +11,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/usb/pd.h>
 #include "zuma.dtsi"
+#include "zuma-husky-audio.dtsi"
 
 / {
 	model = "Google Pixel 8 Pro";
@@ -674,4 +675,92 @@
 
 &aoc {
 	status = "okay";
+};
+
+/*
+ * The two CS35L41 speaker amplifiers on USI1 / spi19 (Google's spi_19):
+ * chip select 0 native, chip select 1 on gpn1-0; resets gpp1-1 and gph2-1,
+ * interrupts gpa5-2 and gpa7-2, from Google's zuma-shusky-audio.dtsi. The
+ * boost peak is the 7 Pro's 2.5 A bring-up limit (stock says 3.5 A), the
+ * boost capacitance is stock's 4 uF; the supplies are fixed stand-ins for
+ * the PMIC rails the bootloader leaves on (no S2MPG rail driver yet).
+ * The amplifiers stay disabled until the bring-up step enables them; the
+ * speaker limits of device/cheetah/AUDIO-PLAN.md apply (the card driver
+ * enforces them). The firmware subsystem id "husky" names the protection
+ * firmware files the driver asks for.
+ */
+/ {
+	amp_va: regulator-amp-va {
+		compatible = "regulator-fixed";
+		regulator-name = "amp-va";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
+&usi1_hsi0 {
+	status = "okay";
+};
+
+&spi19 {
+	status = "okay";
+	pinctrl-0 = <&amp_cs2>;
+	pinctrl-names = "default";
+	num-cs = <2>;
+	cs-gpios = <0>, <&gpn1 0 GPIO_ACTIVE_LOW>;
+
+	amp_top: amplifier@0 {
+		compatible = "cirrus,cs35l41";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+		#sound-dai-cells = <1>;
+		interrupts-extended = <&gpa5 2 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gpp1 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&amp1_irq &amp1_rst>;
+		pinctrl-names = "default";
+		VA-supply = <&amp_va>;
+		VP-supply = <&V_SYS_dummy>;
+		sound-name-prefix = "Top";
+		cirrus,subsystem-id = "husky";
+		cirrus,boost-type = <0>;
+		cirrus,boost-peak-milliamp = <2500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		/* the stock protection firmware does not survive hibernation */
+		cirrus,dsp-no-hibernate;
+		cirrus,gpio2-src-select = <5>;
+		cirrus,gpio2-output-enable;
+		google,tdm-rx-slots = <0 1>;
+		google,tdm-tx-slots = <0 2 4 6>;
+		status = "disabled";
+	};
+
+	amp_bottom: amplifier@1 {
+		compatible = "cirrus,cs35l41";
+		reg = <1>;
+		spi-max-frequency = <25000000>;
+		#sound-dai-cells = <1>;
+		interrupts-extended = <&gpa7 2 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gph2 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&amp2_irq &amp2_rst>;
+		pinctrl-names = "default";
+		VA-supply = <&amp_va>;
+		VP-supply = <&V_SYS_dummy>;
+		sound-name-prefix = "Bottom";
+		cirrus,subsystem-id = "husky";
+		cirrus,boost-type = <0>;
+		cirrus,boost-peak-milliamp = <2500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,dsp-no-hibernate;
+		cirrus,gpio2-src-select = <5>;
+		cirrus,gpio2-output-enable;
+		google,tdm-rx-slots = <1 0>;
+		google,tdm-tx-slots = <1 3 5 7>;
+		status = "disabled";
+	};
 };

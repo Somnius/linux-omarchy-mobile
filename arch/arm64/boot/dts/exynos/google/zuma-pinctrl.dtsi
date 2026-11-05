@@ -196,6 +196,13 @@
 		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	/* Speaker amplifier 2 (chip select 1) interrupt: gpa7-2. */
+	amp2_irq: amp2-irq-pins {
+		samsung,pins = "gpa7-2";
+		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+	};
 };
 
 &pinctrl_custom_alive {
@@ -311,6 +318,14 @@
 		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	/* Chip select 1 of the amplifiers' SPI is a GPIO: gpn1-0. */
+	amp_cs2: amp-cs2-pins {
+		samsung,pins = "gpn1-0";
+		samsung,pin-function = <GS101_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
 };
 
 &pinctrl_far_alive {
@@ -328,6 +343,13 @@
 			     <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* Speaker amplifier 1 (CS35L41, SPI chip select 0) interrupt: gpa5-2, as Google's cs35l41_1_irq. */
+	amp1_irq: amp1-irq-pins {
+		samsung,pins = "gpa5-2";
+		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
 	};
 };
 
@@ -473,6 +495,14 @@
 		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	/* Amplifier 1 reset: gpp1-1 (the driver drives 1 to release reset). */
+	amp1_rst: amp1-rst-pins {
+		samsung,pins = "gpp1-1";
+		samsung,pin-function = <GS101_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
 };
 
 &pinctrl_hsi1 {
@@ -501,6 +531,14 @@
 
 	hapt_amp_trig: hapt-amp-trig-pins {
 		samsung,pins = "gph2-0";
+		samsung,pin-function = <GS101_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	/* Amplifier 2 reset: gph2-1. */
+	amp2_rst: amp2-rst-pins {
+		samsung,pins = "gph2-1";
 		samsung,pin-function = <GS101_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
