@@ -888,6 +888,33 @@ static ssize_t aoc_clock_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(aoc_clock);
 
+/*
+ * TEST (zuma): read-only view of the AoC PCU words the firmware polls for the
+ * stable audio clock (pcu_base + 0x1000 .. 0x101c, pcu_zuma.cc). blk_aoc is
+ * 0x17000000 and the zuma PCU base 0x1400000 (stock aoc node). Only these
+ * eight words are read, only while the firmware is loaded.
+ */
+static ssize_t pcu_audio_clk_show(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	void __iomem *p;
+	int i, n = 0;
+
+	if (!aoc_fw_ready())
+		return scnprintf(buf, PAGE_SIZE, "firmware not ready\n");
+
+	p = ioremap(0x17000000 + 0x1400000 + 0x1000, 0x20);
+	if (!p)
+		return -ENOMEM;
+	for (i = 0; i < 8; i++)
+		n += scnprintf(buf + n, PAGE_SIZE - n, "pcu+%04x: %08x\n", 0x1000 + 4 * i,
+			       readl_relaxed(p + 4 * i));
+	iounmap(p);
+	return n;
+}
+
+static DEVICE_ATTR_RO(pcu_audio_clk);
+
 static ssize_t aoc_clock_and_kernel_boottime_show(struct device *dev,
 						  struct device_attribute *attr,
 						  char *buf)
@@ -1145,6 +1172,7 @@ static struct attribute *aoc_attrs[] = {
 	&dev_attr_clock_offset.attr,
 	&dev_attr_aoc_clock.attr,
 	&dev_attr_aoc_clock_and_kernel_boottime.attr,
+	&dev_attr_pcu_audio_clk.attr,
 	&dev_attr_reset.attr,
 	&dev_attr_sensor_power_enable.attr,
 	&dev_attr_force_reload.attr,
