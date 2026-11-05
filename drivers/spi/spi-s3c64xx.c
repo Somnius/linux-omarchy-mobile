@@ -368,6 +368,16 @@ static void s3c64xx_spi_set_cs(struct spi_device *spi, bool enable)
 	if (sdd->cntrlr_info->no_cs)
 		return;
 
+	/*
+	 * A device on a GPIO chip select is selected by the SPI core. Keep the
+	 * native chip select released, or it selects the device wired to it at the
+	 * same time (both Pixel 8 Pro amplifiers share MISO) and the bus collides.
+	 */
+	if (sdd->port_conf->manual_native_cs && spi_is_csgpiod(spi)) {
+		writel(S3C64XX_SPI_CS_SIG_INACT, sdd->regs + S3C64XX_SPI_CS_REG);
+		return;
+	}
+
 	if (sdd->port_conf->manual_native_cs && !spi_is_csgpiod(spi)) {
 		bool high = true;
 
