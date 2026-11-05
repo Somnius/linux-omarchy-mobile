@@ -57,6 +57,27 @@
 		compatible = "google-aoc-snd-card";
 		aoc-card-name = "google,aoc-snd-card";
 
+		clks {
+			sys {
+				sys@cs35l41_l {
+					comp = <&amp_top>;
+					src = "BCLK";
+					id = <0>;
+					srcid = <0>;
+					in_mul = <1>;
+					out_mul = <1>;
+				};
+				sys@cs35l41_r {
+					comp = <&amp_bottom>;
+					src = "BCLK";
+					id = <0>;
+					srcid = <0>;
+					in_mul = <1>;
+					out_mul = <1>;
+				};
+			};
+		};
+
 		codec_cfg {
 			cfg_amp_top {
 				of_node = <&amp_top>;
