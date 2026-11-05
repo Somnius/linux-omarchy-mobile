@@ -57,6 +57,17 @@
 		compatible = "google-aoc-snd-card";
 		aoc-card-name = "google,aoc-snd-card";
 
+		codec_cfg {
+			cfg_amp_top {
+				of_node = <&amp_top>;
+				prefix = "Top";
+			};
+			cfg_amp_bottom {
+				of_node = <&amp_bottom>;
+				prefix = "Bottom";
+			};
+		};
+
 		dai_link {
 			dai_fe_ep1_rx: fe_ep1_rx {
 				dai-name = "audio_playback0";
@@ -684,6 +695,9 @@
 				cpu {
 					sound-dai = <&aud_aoc_path TDM_0_RX>;
 				};
+				codec {
+					sound-dai = <&amp_top 0>, <&amp_bottom 0>;
+				};
 				daifmt {
 					dai-format = "dsp_a";
 				};
@@ -699,6 +713,9 @@
 				usefixup;
 				cpu {
 					sound-dai = <&aud_aoc_path TDM_0_TX>;
+				};
+				codec {
+					sound-dai = <&amp_top 0>, <&amp_bottom 0>;
 				};
 				daifmt {
 					dai-format = "dsp_a";
