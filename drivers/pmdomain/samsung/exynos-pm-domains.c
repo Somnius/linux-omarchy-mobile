@@ -188,6 +188,9 @@ static const struct of_device_id exynos_pm_domain_of_match[] = {
 		.compatible = "google,gs101-pd",
 		.data = &gs101_cfg,
 	}, {
+		.compatible = "google,zuma-pd",
+		.data = &gs101_cfg,
+	}, {
 		.compatible = "samsung,exynos4210-pd",
 		.data = &exynos4210_cfg,
 	}, {

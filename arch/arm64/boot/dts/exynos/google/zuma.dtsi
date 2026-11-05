@@ -1414,6 +1414,9 @@
 		pmu_system_controller: system-controller@15460000 {
 			compatible = "google,zuma-pmu";
 			reg = <0x15460000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x15460000 0x10000>;
 
 			/*
 			 * The bootloader reads the reboot reason from SYSIP_DAT0,
@@ -1426,6 +1429,119 @@
 				mode-bootloader = <0xfc>;
 				mode-fastboot = <0xfa>;
 				mode-recovery = <0xff>;
+			};
+
+			/*
+			 * Power domains of blocks nothing in Linux uses yet (stock's
+			 * pd-* nodes, dtb0.dts:10652-10881; offsets from the PMU base),
+			 * so that genpd can power them off: the bootloader leaves them
+			 * all on and the phone idles at about 520 mA (REPORT 16bb). Off by
+			 * default, a power-pd-test overlay turns them on for a test boot.
+			 * The display (dpub/dpuf), GPU (g3d), AoC and HSI domains are not
+			 * listed: their drivers have no power-domains property yet.
+			 */
+			pd_g2d: power-domain@1e80 {
+				compatible = "google,zuma-pd";
+				reg = <0x1e80 0x80>;
+				#power-domain-cells = <0>;
+				label = "g2d";
+				status = "disabled";
+			};
+
+			pd_gdc: power-domain@1f00 {
+				compatible = "google,zuma-pd";
+				reg = <0x1f00 0x80>;
+				#power-domain-cells = <0>;
+				label = "gdc";
+				status = "disabled";
+			};
+
+			pd_gse: power-domain@1f80 {
+				compatible = "google,zuma-pd";
+				reg = <0x1f80 0x80>;
+				#power-domain-cells = <0>;
+				label = "gse";
+				status = "disabled";
+			};
+
+			pd_mcsc: power-domain@2000 {
+				compatible = "google,zuma-pd";
+				reg = <0x2000 0x80>;
+				#power-domain-cells = <0>;
+				label = "mcsc";
+				status = "disabled";
+			};
+
+			pd_mfc: power-domain@2080 {
+				compatible = "google,zuma-pd";
+				reg = <0x2080 0x80>;
+				#power-domain-cells = <0>;
+				label = "mfc";
+				status = "disabled";
+			};
+
+			pd_rgbp: power-domain@2100 {
+				compatible = "google,zuma-pd";
+				reg = <0x2100 0x80>;
+				#power-domain-cells = <0>;
+				label = "rgbp";
+				status = "disabled";
+			};
+
+			pd_tnr: power-domain@2180 {
+				compatible = "google,zuma-pd";
+				reg = <0x2180 0x80>;
+				#power-domain-cells = <0>;
+				label = "tnr";
+				status = "disabled";
+			};
+
+			pd_yuvp: power-domain@2200 {
+				compatible = "google,zuma-pd";
+				reg = <0x2200 0x80>;
+				#power-domain-cells = <0>;
+				label = "yuvp";
+				status = "disabled";
+			};
+
+			pd_aur: power-domain@2300 {
+				compatible = "google,zuma-pd";
+				reg = <0x2300 0x80>;
+				#power-domain-cells = <0>;
+				label = "aur";
+				status = "disabled";
+			};
+
+			pd_bw: power-domain@2380 {
+				compatible = "google,zuma-pd";
+				reg = <0x2380 0x80>;
+				#power-domain-cells = <0>;
+				label = "bw";
+				status = "disabled";
+			};
+
+			pd_eh: power-domain@2400 {
+				compatible = "google,zuma-pd";
+				reg = <0x2400 0x80>;
+				#power-domain-cells = <0>;
+				label = "eh";
+				status = "disabled";
+			};
+
+			pd_ispfe: power-domain@2480 {
+				compatible = "google,zuma-pd";
+				reg = <0x2480 0x80>;
+				#power-domain-cells = <0>;
+				label = "ispfe";
+				status = "disabled";
+			};
+
+			pd_tpu: power-domain@2500 {
+				compatible = "google,zuma-pd";
+				reg = <0x2500 0x80>;
+				#power-domain-cells = <0>;
+				label = "tpu";
+				status = "disabled";
 			};
 		};
 
