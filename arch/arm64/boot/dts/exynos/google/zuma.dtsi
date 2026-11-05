@@ -1231,6 +1231,8 @@
 			google,sysmmu = <&aoc_sysmmu>;
 			google,board-id = <0x40202>;
 			google,board-rev = <0x10000>;
+			/* first runs: no restart of the AoC if it is not online after 5 s */
+			skip-monitor-online-reset;
 			mboxes = <&aoc_mbox_a32 0>, <&aoc_mbox_a32 1>, <&aoc_mbox_a32 2>, <&aoc_mbox_a32 3>,
 				 <&aoc_mbox_a32 4>, <&aoc_mbox_a32 5>, <&aoc_mbox_a32 6>, <&aoc_mbox_a32 7>,
 				 <&aoc_mbox_a32 8>, <&aoc_mbox_a32 9>, <&aoc_mbox_a32 10>, <&aoc_mbox_a32 11>,
