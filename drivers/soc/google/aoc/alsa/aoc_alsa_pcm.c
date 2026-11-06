@@ -670,12 +670,13 @@ static int snd_aoc_pcm_prepare(struct snd_soc_component *component,
 	alsa_stream->n_overflow = 0;
 	alsa_stream->prev_buffer_cnt = 0;
 
-	/* zuma: keep the pre-start data so it can be written again after the AoC has started */
+	/* zuma only: keep the pre-start data to write it again after the AoC has started */
 	kfree(alsa_stream->prefill);
 	alsa_stream->prefill = NULL;
 	alsa_stream->prefill_len = 0;
 	alsa_stream->prefill_cap = 0;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !alsa_stream->cstream &&
+	if (alsa_stream->chip->deep_buffer_drops_prefill &&
+	    substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !alsa_stream->cstream &&
 	    runtime->access != SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) {
 		alsa_stream->prefill = kmalloc(alsa_stream->buffer_size, GFP_KERNEL);
 		if (alsa_stream->prefill)
@@ -723,11 +724,12 @@ static int snd_aoc_pcm_trigger(struct snd_soc_component *component,
 			if (err == 0 && alsa_stream->prefill && alsa_stream->prefill_len &&
 			    alsa_stream->dev) {
 				/*
-				 * The AoC deep-buffer entrypoint throws away what was written before
-				 * the start (read index := write index). Count from the new read
-				 * index and write the pre-start data again.
+				 * The AoC deep-buffer entrypoint throws away what was written
+				 * before the start (read index := write index). Count from the
+				 * new read index and write the pre-start data again.
 				 */
-				unsigned long rp = aoc_ring_bytes_read(alsa_stream->dev->service, AOC_DOWN);
+				unsigned long rp =
+					aoc_ring_bytes_read(alsa_stream->dev->service, AOC_DOWN);
 
 				alsa_stream->hw_ptr_base = rp;
 				alsa_stream->prev_consumed = rp;
@@ -832,12 +834,14 @@ static snd_pcm_uframes_t snd_aoc_pcm_pointer(struct snd_soc_component *component
 	pointer = bytes_to_frames(substream->runtime, alsa_stream->pos);
 
 	/*
-	 * TEST (zuma, REPORT 16aw): the AoC deep-buffer entrypoint drops what was written before the
-	 * stream started (its read index jumps to the write index) and raises no interrupt for it, so
-	 * a client that pre-fills (PipeWire) never sees the buffer drain and stops writing. Report the
-	 * position from the live read index for an interrupt-driven playback stream that is running.
+	 * zuma: the AoC deep-buffer entrypoint drops what was written before the
+	 * stream started (its read index jumps to the write index) and raises no
+	 * interrupt for it, so a client that pre-fills (PipeWire) never sees the
+	 * buffer drain and stops writing. Report the position from the live read
+	 * index for an interrupt-driven playback stream that is running.
 	 */
-	if (alsa_stream->isr_type == INTR && alsa_stream->running && alsa_stream->dev &&
+	if (alsa_stream->chip->deep_buffer_drops_prefill && alsa_stream->isr_type == INTR &&
+	    alsa_stream->running && alsa_stream->dev &&
 	    substream->stream == SNDRV_PCM_STREAM_PLAYBACK && alsa_stream->buffer_size) {
 		unsigned long consumed = aoc_ring_bytes_read(alsa_stream->dev->service, AOC_DOWN);
 		unsigned long live;
