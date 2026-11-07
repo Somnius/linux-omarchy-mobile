@@ -22,6 +22,9 @@ description: |
   and no secure monitor translation: the host programs its outbound address
   translation itself, and its two-lane PHY has a driver of its own.
 
+  zuma (Tensor G3, Pixel 8 and 8 Pro) has the same controller at the same
+  addresses, so it uses zumapro's compatible as a fallback.
+
 allOf:
   - $ref: /schemas/pci/pci-host-bridge.yaml#
   - if:
@@ -45,9 +48,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - google,gs201-pcie-cp
-      - google,zumapro-pcie-cp
+    oneOf:
+      - enum:
+          - google,gs201-pcie-cp
+          - google,zumapro-pcie-cp
+      - items:
+          - const: google,zuma-pcie-cp
+          - const: google,zumapro-pcie-cp
 
   reg:
     minItems: 3
