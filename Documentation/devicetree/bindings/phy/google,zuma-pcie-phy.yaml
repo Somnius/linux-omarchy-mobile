@@ -21,6 +21,10 @@ description:
   external PLL controls and power-down sequence and two lanes of PMA
   registers, so it has a compatible of its own.
 
+  zuma's first PCIe controller (Pixel 8 and 8 Pro modem) has the same
+  two-lane PHY at the same addresses, so it uses zumapro's compatible as a
+  fallback.
+
 properties:
   compatible:
     oneOf:
@@ -28,6 +32,9 @@ properties:
       - items:
           - const: google,zumapro-pcie-phy
           - const: google,zuma-pcie-phy
+      - items:
+          - const: google,zuma-pcie-gen3x2-phy
+          - const: google,zumapro-pcie-gen3x2-phy
       - const: google,zumapro-pcie-gen3x2-phy
 
   reg:
