@@ -265,6 +265,45 @@
 };
 
 /*
+ * The Samsung S5300 modem on pcie_0, with the control lines of stock's
+ * cpif node (raw levels: stock's second cell, 1, is its active-high flag)
+ * and the memory of its cp_shmem node. All of it is disabled: the PHY,
+ * the controller and the modem node stay off until a board file or an
+ * overlay enables them together with pinctrl_hsi1.
+ */
+&pcie_0 {
+	memory-region = <&cp_msi_rmem>;
+	pinctrl-0 = <&pcie0_clkreq>, <&pcie0_perst>,
+		    <&cp_ap2cp_cp_pwr_on>, <&cp_ap2cp_nreset>,
+		    <&cp_ap2cp_wakeup>, <&cp_ap2cp_dump_noti>,
+		    <&cp_ap2cp_pda_active>, <&cp_ap2cp_cp_wrst>,
+		    <&cp_ap2cp_pm_wrst>, <&cp_cp2ap_cp_wrst>,
+		    <&cp_cp2ap_ps_hold>, <&cp_cp2ap_wakeup>,
+		    <&cp_cp2ap_phone_active>;
+
+	modem {
+		compatible = "samsung,s5300-modem";
+		memory-region = <&cp_rmem>, <&cp_msi_rmem>, <&cp_rmem_1>;
+		ap2cp-pda-active-gpios = <&gph1 0 GPIO_ACTIVE_HIGH>;
+		ap2cp-cp-pwr-on-gpios = <&gph1 2 GPIO_ACTIVE_HIGH>;
+		ap2cp-nreset-gpios = <&gph1 7 GPIO_ACTIVE_HIGH>;
+		ap2cp-cp-wrst-gpios = <&gph1 1 GPIO_ACTIVE_HIGH>;
+		ap2cp-pm-wrst-gpios = <&gpa0 2 GPIO_ACTIVE_HIGH>;
+		ap2cp-wakeup-gpios = <&gph0 2 GPIO_ACTIVE_HIGH>;
+		ap2cp-dump-noti-gpios = <&gph0 3 GPIO_ACTIVE_HIGH>;
+		cp2ap-cp-wrst-gpios = <&gpa0 1 GPIO_ACTIVE_HIGH>;
+		cp2ap-ps-hold-gpios = <&gpa6 4 GPIO_ACTIVE_HIGH>;
+		cp2ap-wakeup-gpios = <&gpa6 5 GPIO_ACTIVE_HIGH>;
+		cp2ap-phone-active-gpios = <&gpa7 0 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+};
+
+&pcie_0_phy {
+	status = "disabled";
+};
+
+/*
  * Wi-Fi: the BCM4398 on pcie_1, one Gen3 lane as on stock. Its DMA
  * buffers come from wifi_dma_pool.
  */
@@ -294,6 +333,83 @@
 
 &pcie_1_phy {
 	status = "okay";
+};
+
+/* The modem's lines on ALIVE, with stock's pull and function values */
+&pinctrl_gpio_alive {
+	cp_cp2ap_cp_wrst: cp-cp2ap-cp-wrst-pins {
+		samsung,pins = "gpa0-1";
+		samsung,pin-function = <GS101_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_pm_wrst: cp-ap2cp-pm-wrst-pins {
+		samsung,pins = "gpa0-2";
+		samsung,pin-function = <GS101_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_cp2ap_ps_hold: cp-cp2ap-ps-hold-pins {
+		samsung,pins = "gpa6-4";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_cp2ap_wakeup: cp-cp2ap-wakeup-pins {
+		samsung,pins = "gpa6-5";
+		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
+		samsung,pin-pud = <GS101_PIN_PULL_DOWN>;
+	};
+
+	cp_cp2ap_phone_active: cp-cp2ap-phone-active-pins {
+		samsung,pins = "gpa7-0";
+		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+	};
+};
+
+/* The modem's lines on HSI1, with stock's pull and power-down values */
+&pinctrl_hsi1 {
+	cp_ap2cp_cp_pwr_on: cp-ap2cp-cp-pwr-on-pins {
+		samsung,pins = "gph1-2";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_nreset: cp-ap2cp-nreset-pins {
+		samsung,pins = "gph1-7";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_wakeup: cp-ap2cp-wakeup-pins {
+		samsung,pins = "gph0-2";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_dump_noti: cp-ap2cp-dump-noti-pins {
+		samsung,pins = "gph0-3";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_pda_active: cp-ap2cp-pda-active-pins {
+		samsung,pins = "gph1-0";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	cp_ap2cp_cp_wrst: cp-ap2cp-cp-wrst-pins {
+		samsung,pins = "gph1-1";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
 };
 
 &pinctrl_far_alive {
