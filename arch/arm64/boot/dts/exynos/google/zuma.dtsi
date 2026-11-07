@@ -690,9 +690,9 @@
 		seclog@c3000000 { reg = <0x0 0xc3000000 0x90000>; no-map; };
 		/* debug-snapshot: header through log_s2d_extract */
 		dss@d8100000 { reg = <0x0 0xd8100000 0x5f20000>; no-map; };
-		cp-rmem1@e8000000 { reg = <0x0 0xe8000000 0x2000000>; no-map; };
-		cp-rmem@ea400000 { reg = <0x0 0xea400000 0xc00000>; no-map; };
-		cp-msi@f6200000 { reg = <0x0 0xf6200000 0x1000>; no-map; };
+		cp_rmem_1: cp-rmem1@e8000000 { reg = <0x0 0xe8000000 0x2000000>; no-map; };
+		cp_rmem: cp-rmem@ea400000 { reg = <0x0 0xea400000 0xc00000>; no-map; };
+		cp_msi_rmem: cp-msi@f6200000 { reg = <0x0 0xf6200000 0x1000>; no-map; };
 		abl@f8800000 { reg = <0x0 0xf8800000 0x1000000>; no-map; };
 		debug@fd3f0000 { reg = <0x0 0xfd3f0000 0xe000>; no-map; };
 		/*
@@ -1168,6 +1168,57 @@
 		sysreg_ufs: syscon@13020000 {
 			compatible = "google,zuma-ufs-sysreg", "syscon";
 			reg = <0x13020000 0x1000>;
+		};
+
+		/*
+		 * The modem's controller (stock's pcie_0, ch-num 0) in HSI1: two
+		 * Gen3 lanes, at the addresses and interrupts of stock's
+		 * pcie@12100000 and of the Pixel 9a's modem link. No clocks:
+		 * stock's node names none. Stock's sysreg window (0x12020000) is
+		 * left out until the link driver uses it.
+		 */
+		pcie_0: pcie@12100000 {
+			compatible = "google,zuma-pcie-cp", "google,zumapro-pcie-cp";
+			reg = <0x12100000 0x1400>,
+			      <0x12400000 0x381000>,
+			      <0x40ffe000 0x2000>;
+			reg-names = "elbi", "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			/* PCI 0x14e00000 = CPU 0x40000000, as stock's ranges */
+			ranges = <0x82000000 0x0 0x14e00000 0x40000000 0x0 0xff0000>;
+			bus-range = <0x00 0xff>;
+			interrupts = <GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ctrl", "msi0", "msi1", "msi2", "msi3", "msi4";
+			phys = <&pcie_0_phy>;
+			phy-names = "pcie";
+			pinctrl-0 = <&pcie0_clkreq>, <&pcie0_perst>;
+			pinctrl-names = "active";
+			reset-gpios = <&gph0 0 GPIO_ACTIVE_LOW>;
+			samsung,pmu-syscon = <&pmu_system_controller 0x3ec4>;
+			num-lanes = <2>;
+			max-link-speed = <3>;
+			status = "disabled";
+		};
+
+		pcie_0_phy: phy@12140000 {
+			compatible = "google,zuma-pcie-gen3x2-phy",
+				     "google,zumapro-pcie-gen3x2-phy";
+			reg = <0x12140000 0x3000>,
+			      <0x12120000 0x5000>,
+			      <0x12101400 0x10>,
+			      <0x12130000 0xd000>,
+			      <0x12110000 0x5000>;
+			reg-names = "pma", "pcs", "rst", "udbg", "soc";
+			samsung,pmu-syscon = <&pmu_system_controller 0x3ec4>;
+			#phy-cells = <0>;
+			status = "disabled";
 		};
 
 		pinctrl_hsi2: pinctrl@13040000 {
