@@ -844,3 +844,43 @@
 		};
 	};
 };
+
+/*
+ * The ST54L's NFC controller (ST21NFC-family NCI core) at 0x08 on hsi2c_0,
+ * the haptics driver's bus, from the stock DT (private/stock-dt/ov8.dts
+ * fragments 26-28): interrupt gpa7-6, reset gph1-6, power-idle gph1-3.
+ * The pin groups are stock's: the reset group only sets the power-down
+ * state and the power-idle line keeps its pull-down; neither sets a pin
+ * function, as on the 7 Pro. The chip's reference clock (stock: PMU pad
+ * CLKOUT1, pmu_clk_pad 0x3e84) has no provider in this tree, so there is
+ * no clocks property; the pad stays as the bootloader leaves it. The eSE
+ * half of the chip (st54spi on spi_12, reset gph1-5) is not described and
+ * is never touched. Disabled until a bring-up overlay enables it.
+ */
+&pinctrl_hsi1 {
+	nfc_rst: nfc-rst-pins {
+		samsung,pins = "gph1-6";
+		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_NONE>;
+	};
+
+	nfc_pidle: nfc-pidle-pins {
+		samsung,pins = "gph1-3";
+		samsung,pin-pud = <GS101_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <GS101_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <GS101_PIN_PULL_DOWN>;
+	};
+};
+
+&hsi2c_0 {
+	nfc: nfc@8 {
+		compatible = "st,st54l-i2c", "st,st21nfcc-i2c";
+		reg = <0x08>;
+		interrupts-extended = <&gpa7 6 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gph1 6 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&nfc_rst &nfc_pidle>;
+		pinctrl-names = "default";
+		status = "disabled";
+	};
+};
