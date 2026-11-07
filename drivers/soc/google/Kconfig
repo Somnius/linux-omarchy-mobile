@@ -80,3 +80,5 @@ config GS201_AOC_ALSA
 endmenu
 
 endif
+
+source "drivers/soc/google/cpif/Kconfig"
