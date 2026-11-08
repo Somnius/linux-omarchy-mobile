@@ -24,6 +24,7 @@
 #include <linux/time.h>
 #include <linux/timer.h>
 #include <linux/panic_notifier.h>
+#include <linux/debugfs.h>
 #if IS_ENABLED(CONFIG_S5910)
 #include <linux/s5910.h>
 #endif
@@ -987,6 +988,160 @@ static void gpio_power_offon_cp(struct modem_ctl *mc)
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 10);
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 0);
 #endif
+}
+
+/*
+ * TEST ONLY (never for a PR): debugfs hooks that run the stock power-line helpers above, unchanged,
+ * and nothing else: no phone_state change, no CP memory write (clear_boot_stage / init_ctrl_msg),
+ * no PCIe, no PMU. Created only when the module is loaded with cpif_test_gpio=1. cpif has no
+ * module_exit() and no remove() (modem_main.c:991) and CONFIG_MODULE_FORCE_UNLOAD is off, so once
+ * loaded it stays until reboot: the debugfs files cannot outlive their code.
+ */
+static bool cpif_test_gpio;
+module_param(cpif_test_gpio, bool, 0444);
+MODULE_PARM_DESC(cpif_test_gpio, "TEST ONLY: create debugfs cpif_test/{lines,gpio_off,gpio_on,pda_active}");
+
+static struct modem_ctl *cpif_test_mc;
+static struct dentry *cpif_test_dir;
+static DEFINE_MUTEX(cpif_test_lock);
+
+static int cpif_test_ap2cp_levels(struct modem_ctl *mc, int *sum)
+{
+	static const int idx[] = {
+		CP_GPIO_AP2CP_CP_PWR, CP_GPIO_AP2CP_NRESET, CP_GPIO_AP2CP_WAKEUP,
+		CP_GPIO_AP2CP_DUMP_NOTI,	/* pda_active is allowed to be 1 (stock power_on_cp sets it first) */
+#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
+		CP_GPIO_AP2CP_CP_WRST_N, CP_GPIO_AP2CP_PM_WRST_N,
+#endif
+	};
+	int i, v;
+
+	*sum = 0;
+	for (i = 0; i < ARRAY_SIZE(idx); i++) {
+		v = mif_gpio_get_value(&mc->cp_gpio[idx[i]], false);
+		if (v < 0)
+			return v;
+		*sum += v;
+	}
+	return 0;
+}
+
+static void cpif_test_log(struct modem_ctl *mc, const char *tag)
+{
+	mif_info("cpif_test %s t=%lld ms: AP2CP pwr %d nreset %d wake %d dump %d pda %d | CP2AP ps_hold %d wake %d active %d\n",
+		 tag, ktime_to_ms(ktime_get_boottime()),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_WAKEUP], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_DUMP_NOTI], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_PS_HOLD], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], false));
+#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
+	mif_info("cpif_test %s: ap2cp cp_wrst %d pm_wrst %d | cp2ap cp_wrst %d\n", tag,
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], false),
+		 mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_WRST_N], false));
+#endif
+}
+
+static int cpif_test_lines_show(struct seq_file *m, void *unused)
+{
+	struct modem_ctl *mc = m->private;
+	int i;
+
+	for (i = 0; i < CP_GPIO_MAX; i++)
+		seq_printf(m, "%-18s %d\n", mc->cp_gpio[i].label, mif_gpio_get_value(&mc->cp_gpio[i], false));
+	seq_printf(m, "phone_state %d\n", mc->phone_state);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(cpif_test_lines);
+
+static ssize_t cpif_test_gpio_off_write(struct file *f, const char __user *u, size_t n, loff_t *o)
+{
+	struct modem_ctl *mc;
+
+	mutex_lock(&cpif_test_lock);
+	mc = cpif_test_mc;
+	if (!mc) {
+		mutex_unlock(&cpif_test_lock);
+		return -ENODEV;
+	}
+	cpif_test_log(mc, "gpio_off before");
+	gpio_power_off_cp(mc);	/* stock sequence, any state, no state change */
+	cpif_test_log(mc, "gpio_off after");
+	mutex_unlock(&cpif_test_lock);
+	return n;
+}
+
+static ssize_t cpif_test_gpio_on_write(struct file *f, const char __user *u, size_t n, loff_t *o)
+{
+	struct modem_ctl *mc;
+	int sum, ret;
+
+	mutex_lock(&cpif_test_lock);
+	mc = cpif_test_mc;
+	if (!mc) {
+		mutex_unlock(&cpif_test_lock);
+		return -ENODEV;
+	}
+	ret = cpif_test_ap2cp_levels(mc, &sum);
+	if (ret || sum) {
+		mif_err("cpif_test gpio_on refused: AP2CP lines not all 0 (sum %d, ret %d)\n", sum, ret);
+		mutex_unlock(&cpif_test_lock);
+		return ret ? ret : -EBUSY;
+	}
+	cpif_test_log(mc, "gpio_on before");
+	gpio_power_offon_cp(mc);	/* stock sequence: off half, then pm_wrst, cp_pwr, nreset, cp_wrst */
+	cpif_test_log(mc, "gpio_on after");
+	mutex_unlock(&cpif_test_lock);
+	return n;
+}
+
+static ssize_t cpif_test_pda_active_write(struct file *f, const char __user *u, size_t n, loff_t *o)
+{
+	struct modem_ctl *mc;
+	bool v;
+	int ret = kstrtobool_from_user(u, n, &v);
+
+	if (ret)
+		return ret;
+	mutex_lock(&cpif_test_lock);
+	mc = cpif_test_mc;
+	if (!mc) {
+		mutex_unlock(&cpif_test_lock);
+		return -ENODEV;
+	}
+	cpif_test_log(mc, v ? "pda_active=1 before" : "pda_active=0 before");
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], v, 0);	/* the one line, nothing else */
+	cpif_test_log(mc, v ? "pda_active=1 after" : "pda_active=0 after");
+	mutex_unlock(&cpif_test_lock);
+	return n;
+}
+
+static const struct file_operations cpif_test_gpio_off_fops = {
+	.owner = THIS_MODULE, .open = simple_open, .write = cpif_test_gpio_off_write, .llseek = noop_llseek,
+};
+static const struct file_operations cpif_test_gpio_on_fops = {
+	.owner = THIS_MODULE, .open = simple_open, .write = cpif_test_gpio_on_write, .llseek = noop_llseek,
+};
+
+static const struct file_operations cpif_test_pda_active_fops = {
+	.owner = THIS_MODULE, .open = simple_open, .write = cpif_test_pda_active_write, .llseek = noop_llseek,
+};
+
+static void cpif_test_init(struct modem_ctl *mc)
+{
+	struct dentry *d = debugfs_create_dir("cpif_test", NULL);
+
+	cpif_test_dir = d;
+	cpif_test_mc = mc;
+	debugfs_create_file("lines", 0444, d, mc, &cpif_test_lines_fops);
+	debugfs_create_file("gpio_off", 0200, d, mc, &cpif_test_gpio_off_fops);
+	debugfs_create_file("gpio_on", 0200, d, mc, &cpif_test_gpio_on_fops);
+	debugfs_create_file("pda_active", 0200, d, mc, &cpif_test_pda_active_fops);
+	mif_info("cpif_test: debugfs cpif_test/{lines,gpio_off,gpio_on,pda_active} created (TEST ONLY)\n");
 }
 
 static void gpio_power_wreset_cp(struct modem_ctl *mc)
@@ -2471,6 +2626,9 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 		goto err_dev_create_file;
 	}
 
+	if (cpif_test_gpio)
+		cpif_test_init(mc);
+
 	return 0;
 
 err_dev_create_file:
@@ -2503,6 +2661,13 @@ err_dt_parse:
 void s5100_uninit_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 {
 	struct device *dev = mc->dev;
+
+	/* TEST ONLY hook: drop the debugfs files before the modem_ctl goes away */
+	mutex_lock(&cpif_test_lock);
+	debugfs_remove_recursive(cpif_test_dir);
+	cpif_test_dir = NULL;
+	cpif_test_mc = NULL;
+	mutex_unlock(&cpif_test_lock);
 
 	device_remove_file(dev, &dev_attr_s5100_wake_lock);
 	sysfs_remove_group(&dev->kobj, &modem_group);
