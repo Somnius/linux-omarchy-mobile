@@ -827,6 +827,17 @@
 			reg = <0x15460000 0x10000>;
 
 			/*
+			 * Power off by releasing PS_HOLD, as gs101 and gs201 do. Without it
+			 * the kernel only has PSCI SYSTEM_OFF, after which the phone restarts.
+			 */
+			syscon-poweroff {
+				compatible = "syscon-poweroff";
+				offset = <0x3e9c>;	/* PAD_CTRL_PWR_HOLD */
+				mask = <0x100>;
+				value = <0x0>;
+			};
+
+			/*
 			 * The bootloader reads the reboot reason from SYSIP_DAT0,
 			 * where stock's pixel-reboot driver writes it
 			 * (reboot-cmd-offset 0x810), with gs101's and gs201's values.

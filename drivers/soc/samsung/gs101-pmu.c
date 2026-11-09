@@ -343,6 +343,7 @@ const struct exynos_pmu_data gs101_pmu_data = {
 #define ZUMA_CLUSTER1_NONCPU_INT_EN	0x1544
 #define ZUMA_HSI0_STATUS		0x2a84
 #define ZUMA_PAD_CTRL_NFC_CLK		0x3e84
+#define ZUMA_PAD_CTRL_PWR_HOLD		0x3e9c
 #define ZUMA_PHY_CTRL_UFS		0x3ec0
 #define ZUMA_PHY_CTRL_PCIE0		0x3ec4
 #define ZUMA_PHY_CTRL_PCIE1		0x3ec8
@@ -358,6 +359,8 @@ static const struct regmap_range zuma_pmu_registers[] = {
 	regmap_reg_range(GS101_RST_STAT, GS101_RST_STAT),
 	/* HSI0's power status, read by Tensor G4's HSI0 clock driver */
 	regmap_reg_range(ZUMA_HSI0_STATUS, ZUMA_HSI0_STATUS),
+	/* PS_HOLD: clearing bit 8 cuts the power (syscon-poweroff) */
+	regmap_reg_range(ZUMA_PAD_CTRL_PWR_HOLD, ZUMA_PAD_CTRL_PWR_HOLD),
 	/* PHY isolation */
 	regmap_reg_range(GS101_PHY_CTRL_USB20, GS101_PHY_CTRL_USB20),
 	regmap_reg_range(ZUMA_PHY_CTRL_UFS, ZUMA_PHY_CTRL_UFS),
